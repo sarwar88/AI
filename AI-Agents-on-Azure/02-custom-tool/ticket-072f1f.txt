@@ -1,0 +1,4 @@
+Support ticket: 072f1f
+Submitted by: user@gmail.com
+Description:
+User is not able to reset their password.

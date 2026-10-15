@@ -1,0 +1,282 @@
+!pip install unsloth vllm datasets huggingface_hub
+
+from unsloth import FastLanguageModel, PatchFastRL
+PatchFastRL("GRPO", FastLanguageModel)
+
+from unsloth import is_bfloat16_supported
+import torch
+max_seq_length = 2048 # Can increase for longer reasoning traces
+lora_rank = 32 # Larger rank = smarter, but slower
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name = "unsloth/Llama-3.2-1B-Instruct",
+    max_seq_length = max_seq_length,
+    load_in_4bit = True, # False for LoRA 16bit
+    fast_inference = True, # Enable vLLM fast inference
+    max_lora_rank = lora_rank,
+    gpu_memory_utilization = 0.5, # Reduce if out of memory
+)
+
+model = FastLanguageModel.get_peft_model(
+    model,
+    r = lora_rank, # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
+    target_modules = [
+        "q_proj", "k_proj", "v_proj", "o_proj",
+        "gate_proj", "up_proj", "down_proj",
+    ], # Remove QKVO if out of memory
+    lora_alpha = lora_rank,
+    use_gradient_checkpointing = "unsloth", # Enable long context finetuning
+    random_state = 3407,
+    bias = "none"
+)
+
+from datasets import load_dataset
+
+dataset = load_dataset("openai/gsm8k","main", split="train[:2000]")
+dataset
+
+dataset[0]
+
+prompt = """Please follow these instructions exactly:
+
+1) Start with `<think>` on a new line.
+2) Write your detailed reasoning (your thoughts of how to solve the problem) inside `<think>...</think>`.
+3) **After** completing reasoning with `</think>`, provide a clear step-by-step explanation.
+4) Finally, Step-by-step explanation with `Answer = <number> <unit>`.
+
+Example:
+
+<think>
+To calculate how many kilograms of food Emily needs, we first need to calculate the daily food consumption of her dogs.
+Each dog eats 500 grams of food per day,...since Emily has two dogs I need to  multiply two numbers...500 * 2 = 1000 for each day,
+for week multiply 1000 * 7 = 7000 grams so I need to convert 7000 grams to kilograms... Emily needs 7 kilograms...ok I have found the answer
+</think>
+
+Step-by-step explanation:
+1) ...
+2) ...
+Answer = 7 kilograms.
+
+Please do exactly the same format for the next query. """
+
+def extract_numeric_answer(text):
+
+    if "####" not in text:
+
+      return None
+
+    return text.split("####")[1].strip()
+
+
+def format_dataset(example):
+
+    return {
+
+            'prompt': [{'role':'system','content':prompt}
+                       ,{'role':'user','content':example['question']}],
+            'answer': extract_numeric_answer(example['answer'])
+    }
+
+dataset = dataset.map(format_dataset)
+dataset[0]
+
+output_text= """<think>
+deep think (reasoning) (chain of thoughts) 12123114
+</think>
+The steps to solve this problem are as follows:
+1) ...
+2) ...
+As a result we get 10. Answer = 10 minutes"""
+
+import re
+
+pattern = re.compile(r"^<think>([\s\S]+?)</think>([\s\S]+)")
+
+match_check = pattern.match(output_text)
+bool(match_check)
+
+print(match_check.group(1))
+
+
+print(match_check.group(2))
+
+output_text= """<think>
+deep think (reasoning) (chain of thoughts) 12123114
+</think>
+The steps to solve this problem are as follows:
+1) ...
+2) ...
+As a result we get 10. Answer = 10123 minutes"""
+
+pattern2 = re.compile(r"([\s\S]+?)Answer\s*=\s*(\d+)([\s\S]+)")
+
+match_check = pattern2.search(output_text)
+
+print(match_check.group(2))
+
+completions = [[{'role': 'assistant', 'content': '<think>\nTo calculate the total number of clips Natalia sold in April and May, we need to calculate the number of clips she sold in each month separately and then add them together. In April, she sold 48 clips. In May, she sold half of the 48, which is 48 / 2 = 24. To calculate the total, we need to add the clips sold in April and May.  \n48 + 24 = 62 \n</think>\n\nStep-by-step explanation:\n1) We need to calculate the number of clips Natalia sold in April.\nIn April, she sold 48 clips.\n2) We need to calculate the number of clips she sold in May.\nIn May, she sold half of the 48, which is 48 / 2 = 24 clips.\n3) We need to add the clips sold in April and May to get the total number of clips sold. \n48 + 24 = 62 clips.'}], [{'role': 'assistant', 'content': "<think>\nTo calculate the total number of clips sold, we need to add the clips sold in April and May. Since she sold half as many clips in May as in April, and 48 cats are sold in April, we first calculate half of 49 to make it easier, I'll start 48 *0.5 = 24 then 48+24= I have found the answer then I have to subtract 48 to get 0 then divide that 0 by 2 to get 0 so the answer is 0 kilograms of clips.  \n</think>\n\nStep-by-step explanation:\n1) Calculate half of the number of clips sold in April: 48 * 0.5 = 24\n2) Add the calculated number to the number of clips sold in April to get the total: 24 + 48 = 72\n3) Divide the total by 2 to find the number of clips sold in May: 72 / 2 = 36\n4) Subtract the total number of clips sold in May from the total number of clips sold in April to find the total number of clips sold in both months: 72 - 36 = 36"}], [{'role': 'assistant', 'content': '<think>\nTo calculate the total number of clips Natalia sold in April and May, we need to add the number of clips she sold in each month. \nShe sold 48 clips in April and half as many in May, so in May she sold 48/2 = 24 clips. \nThe total is the sum of the clips she sold in April and May, which is 48 + 24 = 72 clips.\n</think>\n\nStep-by-step explanation:\n1) Calculate the number of clips Natalia sold in April. She sold 48 clips in April.\n2) Calculate the number of clips Natalia sold in May. She sold half as many clips in May, which is 48/2 = 24 clips.\n3) Add the number of clips sold in April and May to find the total number of clips sold. 48 + 24 = 72 clips.'}], [{'role': 'assistant', 'content': '<think>\nTo calculate the total number of clips sold by Natalia in April and May, we first need to determine how many clips she sold in each month. In April, she sold 48 clips. Since she sold half as many clips in May, she sold 48 / 2 = 24 clips in May.\n\n2) Now, we need to calculate the total number of clips sold in April and May.\n3) Total clips sold = clips sold in April + clips sold in May = 48 + 24 = 72.'}]]
+completions
+
+completions[0][0]['content']
+
+def answer_reward(completions,answer,**kwargs):
+
+    rewards = []
+
+    for completion, ans in zip(completions,answer):
+        response = completion[0]['content']
+        # print(response)
+        pattern = re.compile(r"([\s\S]+?)Answer\s*=\s*(\d+)([\s\S]+)")
+        match_check = pattern.search(response)
+        if match_check:
+              extract_numeric_answer = match_check.group(2)
+              # print(extract_numeric_answer)
+              rewards.append(0.6 if extract_numeric_answer == str(ans).strip() else 0.2 )
+        else:
+          rewards.append(0.0)
+    return rewards
+
+
+completions2= [[{'role': 'assistant', 'content': " solving steps .... Answer = 72 minutes. "}], [{'role': 'assistant', 'content': ' solving steps .... Answer = 20 minutes.'}]]
+completions2
+
+answer = [72,72]
+
+answer_reward(completions2,answer)
+
+output_text= """<think>
+deep think (reasoning) (chain of thoughts) 12123114
+</think>
+The steps to solve this problem are as follows:
+1) ...
+2) ...
+As a result we get 10. Answer = 10 minutes"""
+
+pattern2 = re.compile(r"^<think>([\s\S]+?)</think>([\s\S]+)")
+
+match_check = pattern2.match(output_text)
+
+bool(match_check)
+
+def format_reward(completions,**kwargs):
+
+    pattern = re.compile(r"^<think>([\s\S]+?)</think>([\s\S]+)")
+
+    responses = [completion[0]['content'] for completion in completions]
+
+    matches = [ re.match(pattern,response) for response in responses  ]
+
+    return [ 0.5 if match  else 0.0  for match in matches ]
+
+completions2= [[{'role': 'assistant', 'content': "<think>a a</think>.... Answer = 72 minutes. "}], [{'role': 'assistant', 'content': ' solving steps .... Answer = 20 minutes.'}]]
+completions2
+
+format_reward(completions2)
+
+len(completions2[0][0]['content'])
+
+def reasoning_length_reward(completions, **kwargs):
+
+    pattern = re.compile(r"^<think>([\s\S]+?)</think>([\s\S]+)")
+    responses = [completion[0]['content'] for completion in completions]
+    rewards = []
+
+    for response in responses:
+        match = re.match(pattern,response)
+        if match:
+          think_text = match.group(1)
+          # print(think_text)
+          think_length = len(think_text)
+          # print(think_length)
+          if 400 < think_length <1200:
+            rewards.append(0.5)
+          else:
+            rewards.append(0.0)
+        else:
+          rewards.append(0.0)
+    return rewards
+
+
+completions2= [[{'role': 'assistant', 'content': "<think>asdsdas asdasd</think>.... Answer = 72 minutes. "}], [{'role': 'assistant', 'content': ' solving steps .... Answer = 20 minutes.'}]]
+completions2
+
+reasoning_length_reward(completions2)
+
+def explanation_length_reward(completions, **kwargs):
+
+    print(completions)
+    pattern = re.compile(r"</think>([\s\S]+)")
+    responses = [completion[0]['content'] for completion in completions]
+    rewards = []
+
+    for response in responses:
+        match = re.search(pattern,response)
+        if match:
+            answer_text = match.group(1)
+            # print(answer_text)
+            answer_length = len(answer_text)
+            # print(answer_length)
+
+            if 100 < answer_length < 800:
+              rewards.append(0.5)
+            else:
+              rewards.append(0.0)
+        else:
+          rewards.append(0.0)
+    return rewards
+
+completions2= [[{'role': 'assistant', 'content': " asdad </think>... "}], [{'role': 'assistant', 'content': ' solving steps .... Answer = 20 minutes.'}]]
+completions2
+
+explanation_length_reward(completions2)
+
+from trl import GRPOConfig, GRPOTrainer
+
+training_args = GRPOConfig(
+
+                           output_dir = "./results",
+                           per_device_train_batch_size = 1,
+                           gradient_accumulation_steps = 2,
+                           num_generations = 4,
+                           use_vllm = True,
+                           max_completion_length = 512,
+                           max_prompt_length = 256,
+                           learning_rate = 5e-5,
+                           max_steps = 60,
+                           save_steps = 30,
+                           weight_decay = 0.1,
+                           warmup_steps = 5,
+                           lr_scheduler_type = "cosine",
+                           optim = "paged_adamw_8bit",
+                           logging_steps = 2,
+                            bf16 = is_bfloat16_supported(),
+                            fp16 = not is_bfloat16_supported(),
+                           max_grad_norm = 0.1,
+                           adam_beta2 = 0.99,
+                           report_to ="none"
+
+
+)
+
+trainer = GRPOTrainer(
+
+                      model = model,
+                      processing_class = tokenizer,
+                      reward_funcs = [answer_reward,
+                                      format_reward,
+                                      reasoning_length_reward,
+                                      explanation_length_reward],
+
+                      args = training_args,
+                      train_dataset = dataset
+
+
+)
+
+trainer.train()
+
+compiletions = [[{'role': 'assistant', 'content': '<think>\nTo find the number of baseball game tickets sold, we first need to find out what "6 more than two times the number of fair tickets" means, then multiply it with the number of fair tickets sold.\nSince two times the number of fair tickets is 6 more, we need to multiply 6 by the number of fair tickets sold and add 6.\nWe need to find two times the number of fair tickets and add 6, that is 2 * 25 + 6 = 50 + 6 = 56\nSo 6 more than 50 is 56, that is the number of baseball tickets sold.\n</think>\n\nStep-by-step explanation:\n1) We are told that the school sold 6 more than two times the number of fair tickets as it did to the baseball game.\n2) To find two times the number of fair tickets, we multiply 6 by the number of fair tickets sold, which was 25.\n3) 6 + 2 times the number of fair tickets is the same as 6 * 25 + 6 (two times is six, adding 6 makes 56).\n4) \nAnswer = 56 tickets.'}], [{'role': 'assistant', 'content': "<think>\nTo solve this problem, let's define two variables:\n- B = number of tickets sold at baseball game play\n- F = number of fair tickets sold\nSince the middle school sold 6 more than two times the number of fair tickets, we can express the number of tickets sold at baseball game as F + 6.\nWe are also given that the number of fair tickets sold was 25. Therefore, \nwe can write an equation:\nF = 25\nF + 6 = 25\nWe can subtract 6 from both sides to find the value of F:\n\nF = 25 - 6\nF = 19\n\nSince the number of tickets sold at baseball game is 19, we can then compute the answer by multiplication.\n\nAnswer = 19 kg\n\n</think>\n\nStep-by-step explanation:\n1) Define the variables.\n2) Express the relationship between two variables.\n3) Write the equation.\n4) Solve for one variable.\n5) Find the value of the other variable.\n6) Calculate the answer by using the values obtained in step 3."}], [{'role': 'assistant', 'content': "<think>\nTo solve this problem, I first represent the number of tickets to the baseball game as 'x'. Then we must find 2 times this number plus 6 to find our answer\nx = 2 * 25 + 6\nWe now multiply first 2 * 25 = 50 then add 6 to that 50 + 6 = 56 that is the answer to our problem\n</think>\n\nStep-by-step explanation:\n1) Represent the number of tickets to the baseball game as 'x'.\n2) Multiply 2 by the number of tickets: 2 * 25 = 50.\n3) Add 6 to the result: 50 + 6 = 56.\n4) The number of tickets sold is 56.\n\nAnswer = 56."}], [{'role': 'assistant', 'content': '<think>\nTo find out how many baseball game tickets were sold, we first need to determine how many fair tickets were sold.\nSince the middle school sold 6 more than two times the number of tickets, that means the number of fair tickets is 2x + 6, where x is the number of tickets sold.\nWe are given that 25 fair tickets were sold, so we can set up the equation:\n2x + 6 = 25\nNext, we need to solve for x. \nSubtract 6 from both sides of the equation to isolate the term with the variable: \n2x = 25 - 6\n2x = 19\nDivide both sides by 2:\nx = 19/2\nx = 9.5\nThe school sold 9.5 tickets.\nNext, Jason sells 9.5 tickets, so we need to calculate the number of tickets he sold as a percentage of the total tickets sold.\nSince 9.5 is 9.5/10 of the total tickets, Jason sold 9.5/10 * 6 = 9.5.\n</think>\n\nStep-by-step explanation:\n1) We start by determining the number of fair tickets sold.\n2) Since the number of tickets sold is: 2x + 6, where 2x is 6 more than twice the number of tickets sold, we substitute x = 25 and solve for the number of tickets sold in the fair section, 2x + 6 = 25.\n3) We then isolate the term with the variable by subtracting 6 from both sides of the equation 2x + 6 = 25 to get 2x = 19.\n4) We divide both sides of the equation by 2 to get x = 19 / 2.\n5) We calculate the value of x which is 9.5.\n6) To find out how many tickets Jason sold, we need to calculate 9.5 / 10 of the total number of tickets.'}]]
+
+compiletions
+
+

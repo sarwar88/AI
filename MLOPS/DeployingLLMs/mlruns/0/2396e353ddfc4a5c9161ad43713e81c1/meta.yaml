@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/0/2396e353ddfc4a5c9161ad43713e81c1/artifacts
+end_time: 1753626314601
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 2396e353ddfc4a5c9161ad43713e81c1
+run_name: tasteful-fawn-692
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753622407915
+status: 3
+tags: []
+user_id: USER

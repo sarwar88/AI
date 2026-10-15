@@ -1,0 +1,4 @@
+Support ticket: eadea1
+Submitted by: user@gmail.com
+Description:
+Unable to reset email password. User needs assistance in resetting their email password.

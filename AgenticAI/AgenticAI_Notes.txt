@@ -1,0 +1,8 @@
+Agentic AI
+
+insall uv 
+install cursor 
+uv synch (to crate env from commnd promt )
+PS A:\WorkA\AIML\UdemyCoursesLabs\AgenticAIUdemy\agents> .\.venv\Scripts\activate  (to activate the agentic .venv enironment)
+
+crewai crew create mydebate

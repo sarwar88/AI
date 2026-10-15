@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/902423591465530632/ef10cd2f435146fdb258402649f6bf7c/artifacts
+deleted_time: 1753860440826
+end_time: 1753850568930
+entry_point_name: ''
+experiment_id: '902423591465530632'
+lifecycle_stage: deleted
+run_id: ef10cd2f435146fdb258402649f6bf7c
+run_name: distilbert-base-cased--ag_news
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753842154419
+status: 4
+tags: []
+user_id: USER

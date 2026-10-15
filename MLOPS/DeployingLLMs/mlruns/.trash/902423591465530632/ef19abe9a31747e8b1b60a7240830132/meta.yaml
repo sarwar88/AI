@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/902423591465530632/ef19abe9a31747e8b1b60a7240830132/artifacts
+deleted_time: 1753860440826
+end_time: null
+entry_point_name: ''
+experiment_id: '902423591465530632'
+lifecycle_stage: deleted
+run_id: ef19abe9a31747e8b1b60a7240830132
+run_name: distilbert-base-cased-params['dataset_name']
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753781675486
+status: 1
+tags: []
+user_id: USER

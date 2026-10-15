@@ -1,0 +1,39 @@
+
+
+venv\Scripts\activate
+conda activate llms
+jupyter lab
+
+
+conda env create -f environment.yml
+
+open api key
+=============
+
+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
+
+
+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
+
+
+hugging fake 
+
+
+Save your Access Token
+
+HF_TOKEN=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
+
+
+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
+
+
+
+FG_HF_TOKEN=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
+
+
+
+
+
+
+
+

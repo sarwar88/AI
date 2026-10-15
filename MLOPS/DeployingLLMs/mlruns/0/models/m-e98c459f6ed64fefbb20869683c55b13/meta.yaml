@@ -1,0 +1,10 @@
+artifact_location: mlflow-artifacts:/0/models/m-e98c459f6ed64fefbb20869683c55b13/artifacts
+creation_timestamp: 1753625104704
+experiment_id: '0'
+last_updated_timestamp: 1753625105001
+model_id: m-e98c459f6ed64fefbb20869683c55b13
+model_type: ''
+name: transformer_t5_model
+source_run_id: 2396e353ddfc4a5c9161ad43713e81c1
+status: 3
+status_message: null

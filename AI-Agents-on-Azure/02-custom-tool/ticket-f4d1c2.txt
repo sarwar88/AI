@@ -1,0 +1,4 @@
+Support ticket: f4d1c2
+Submitted by: sandeshhase15@gmailcom
+Description:
+Laptop not working, displaying only a black screen, even after restarting

@@ -1,0 +1,7 @@
+artifact_location: mlflow-artifacts:/902423591465530632
+creation_time: 1753780008897
+experiment_id: '902423591465530632'
+last_update_time: 1753860440826
+lifecycle_stage: deleted
+name: sequence_classification
+tags: {}

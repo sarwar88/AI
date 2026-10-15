@@ -1,0 +1,4 @@
+Support ticket: 9b8543
+Submitted by: user@gmail.com
+Description:
+User is unable to reset their email password.
